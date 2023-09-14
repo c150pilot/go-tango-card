@@ -2,7 +2,7 @@ package tango
 
 import (
 	"encoding/json"
-
+	"fmt"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -46,9 +46,9 @@ type Item struct {
 	RewardType                 string           `json:"rewardType"`
 	IsWholeAmountValueRequired bool             `json:"isWholeAmountValueRequired"`
 	ExchangeRateRule           string           `json:"exchangeRateRule"`
-	MinValue                   int              `json:"minValue"`
-	MaxValue                   int              `json:"maxValue"`
-	FaceValue                  int              `json:"faceValue"`
+	MinValue                   float64          `json:"minValue"`
+	MaxValue                   float64          `json:"maxValue"`
+	FaceValue                  float64          `json:"faceValue"`
 	Fee                        Fee              `json:"fee"`
 	CreatedDate                string           `json:"createdDate"`
 	LastUpdateDate             string           `json:"lastUpdateDate"`
@@ -60,8 +60,8 @@ type Item struct {
 }
 
 type Fee struct {
-	Type  string `json:"type"`
-	Value int    `json:"value"`
+	Type  string  `json:"type"`
+	Value float64 `json:"value"`
 }
 
 type ItemAvailability struct {
@@ -73,11 +73,16 @@ type ItemAvailability struct {
 }
 
 /*
-Get all items in your accounts catalog.
+GetCatalogItems returns a list of all items in your account's catalog.
 https://developers.tangocard.com/reference/getcatalog-1
+
+Notice from the docs:
+We recommend to call GET {URI}/catalogs endpoint semi-daily (at most) to check the current list
+of content and their status. This catalog endpoint should not be used per individual order
+or with frequent polling system.
 */
 func (c *TangoClient) GetCatalogItems() (Catalog, error) {
-	url := ApiURL + "/catalog"
+	url := ApiURL + "/catalogs"
 
 	client := resty.New()
 
@@ -85,9 +90,12 @@ func (c *TangoClient) GetCatalogItems() (Catalog, error) {
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Authorization", "Bearer "+c.Token).
 		Get(url)
-
 	if err != nil {
 		return Catalog{}, err
+	}
+
+	if resp.StatusCode() != 200 {
+		return Catalog{}, fmt.Errorf(resp.Status())
 	}
 
 	var responseData Catalog
