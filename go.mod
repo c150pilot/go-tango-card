@@ -1,4 +1,4 @@
-module tango
+module github.com/c150pilot/go-tango-card
 
 go 1.21.0
 
