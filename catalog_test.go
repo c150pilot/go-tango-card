@@ -2,10 +2,12 @@ package tango_test
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
-	"tango"
 	"testing"
+
+	tango "github.com/c150pilot/go-tango-card"
+
+	"github.com/joho/godotenv"
 )
 
 func TestTangoClient_GetCatalogItems(t *testing.T) {

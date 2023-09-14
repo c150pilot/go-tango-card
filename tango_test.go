@@ -1,8 +1,9 @@
 package tango_test
 
 import (
-	"tango"
 	"testing"
+
+	tango "github.com/c150pilot/go-tango-card"
 )
 
 func TestNew(t *testing.T) {
