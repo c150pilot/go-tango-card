@@ -21,7 +21,7 @@ type Brand struct {
 	CreatedDate       string            `json:"createdDate"`
 	LastUpdateDate    string            `json:"lastUpdateDate"`
 	BrandRequirements BrandRequirements `json:"brandRequirements"`
-	ImageUrls         ImageUrls         `json:"imageUrls"`
+	ImageUrls         map[string]string `json:"imageUrls"`
 	Status            string            `json:"status"`
 	Items             []Item            `json:"items"`
 }
@@ -31,10 +31,6 @@ type BrandRequirements struct {
 	TermsAndConditionsInstructions string `json:"termsAndConditionsInstructions"`
 	DisclaimerInstructions         string `json:"disclaimerInstructions"`
 	AlwaysShowDisclaimer           bool   `json:"alwaysShowDisclaimer"`
-}
-
-type ImageUrls struct {
-	AdditionalProp string `json:"additionalProp"`
 }
 
 type Item struct {
@@ -82,7 +78,7 @@ of content and their status. This catalog endpoint should not be used per indivi
 or with frequent polling system.
 */
 func (c *TangoClient) GetCatalogItems() (Catalog, error) {
-	url := ApiURL + "/catalogs"
+	url := ApiURL + "/catalogs?verbose=true"
 
 	client := resty.New()
 
