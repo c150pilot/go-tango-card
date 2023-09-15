@@ -81,13 +81,9 @@ type Amount struct {
 }
 
 type Reward struct {
-	Credentials            Credentials      `json:"credentials"`
-	CredentialList         []CredentialList `json:"credentialList"`
-	RedemptionInstructions string           `json:"redemptionInstructions"`
-}
-
-type Credentials struct {
-	AdditionalProp string `json:"additionalProp"`
+	Credentials            map[string]string `json:"credentials"`
+	CredentialList         []CredentialList  `json:"credentialList"`
+	RedemptionInstructions string            `json:"redemptionInstructions"`
 }
 
 type CredentialList struct {
