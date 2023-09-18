@@ -2,8 +2,9 @@ package tango
 
 import (
 	"encoding/json"
-
+	"fmt"
 	"github.com/go-resty/resty/v2"
+	"time"
 )
 
 type CreateOrderData struct {
@@ -49,6 +50,21 @@ type Address struct {
 	StateOrProvince string `json:"stateOrProvince"`
 	PostalCode      string `json:"postalCode"`
 	Country         string `json:"country"`
+}
+
+type CreateOrderResponseError struct {
+	Timestamp  time.Time `json:"timestamp"`
+	RequestId  string    `json:"requestId"`
+	Path       string    `json:"path"`
+	HttpCode   int       `json:"httpCode"`
+	HttpPhrase string    `json:"httpPhrase"`
+	Errors     []struct {
+		Path         string `json:"path"`
+		I18NKey      string `json:"i18nKey,omitempty"`
+		Message      string `json:"message"`
+		InvalidValue string `json:"invalidValue"`
+		Constraint   string `json:"constraint"`
+	} `json:"errors"`
 }
 
 type CreateOrderResponse struct {
@@ -122,6 +138,40 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 		Recipient:          data.Recipient,
 	}
 
+	// Marshal payload to JSON
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return CreateOrderResponse{}, err
+	}
+
+	payloadMap, err := clean(payloadBytes)
+	if err != nil {
+		return CreateOrderResponse{}, err
+	}
+
+	// If recipient[address] is empty, remove it from the payload
+	if payloadMap["recipient"] != nil {
+		recipient, ok := payloadMap["recipient"].(map[string]interface{})
+		if !ok {
+			return CreateOrderResponse{}, fmt.Errorf("recipient is not a map[string]interface{}")
+		}
+		if recipient["address"] != nil {
+			address, ok := recipient["address"].(map[string]interface{})
+			if !ok {
+				return CreateOrderResponse{}, fmt.Errorf("address is not a map[string]interface{}")
+			}
+			streetLine1, ok := address["streetLine1"].(string)
+			if ok && streetLine1 == "" {
+				delete(recipient, "address")
+			}
+		}
+	}
+
+	payloadJSON, err := json.Marshal(payloadMap)
+	if err != nil {
+		return CreateOrderResponse{}, err
+	}
+
 	// Create HTTP Post Request with payload
 	client := resty.New()
 
@@ -129,8 +179,20 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Authorization", "Bearer "+c.Token).
-		SetBody(payload).
+		SetBody(payloadJSON).
 		Post(url)
+
+	// Check JSON response for errors
+	var responseError CreateOrderResponseError
+	err = json.Unmarshal(resp.Body(), &responseError)
+	if err != nil {
+		return CreateOrderResponse{}, err
+	}
+
+	// If there are errors, return them
+	if len(responseError.Errors) > 0 {
+		return CreateOrderResponse{}, fmt.Errorf("%v", responseError.Errors)
+	}
 
 	if err != nil {
 		return CreateOrderResponse{}, err
@@ -144,4 +206,20 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 	}
 
 	return responseData, nil
+}
+
+func clean(payload []byte) (map[string]interface{}, error) {
+	var dataMap map[string]interface{}
+	if err := json.Unmarshal(payload, &dataMap); err != nil {
+		return nil, err
+	}
+
+	// Remove empty and nil values from nested maps
+	for k, v := range dataMap {
+		if v == nil || v == "" || v == 0 {
+			delete(dataMap, k)
+		}
+	}
+
+	return dataMap, nil
 }
