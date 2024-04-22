@@ -42,7 +42,13 @@ func TestTangoClient_GetCustomers(t *testing.T) {
 	if len(customers) == 0 {
 		t.Errorf("Expected non-empty, got %v", customers)
 	}
-	fmt.Println(customers)
+
+	for _, customer := range customers {
+		if customer.DisplayName == "ArcadeAppsLLC" {
+			fmt.Println(customer)
+			fmt.Println(customer.CustomerIdentifier)
+		}
+	}
 
 	t.Logf("Testing for GetCustomers() complete")
 }
