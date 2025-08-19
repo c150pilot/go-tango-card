@@ -3,8 +3,9 @@ package tango
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type CreateOrderData struct {
@@ -181,6 +182,12 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 		SetHeader("Authorization", "Bearer "+c.Token).
 		SetBody(payloadJSON).
 		Post(url)
+	if err != nil {
+		return CreateOrderResponse{}, err
+	}
+
+	// Check Status
+	fmt.Println(resp.Status())
 
 	// Check JSON response for errors
 	var responseError CreateOrderResponseError

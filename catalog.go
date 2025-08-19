@@ -3,6 +3,7 @@ package tango
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/go-resty/resty/v2"
 )
 
@@ -89,6 +90,9 @@ func (c *TangoClient) GetCatalogItems() (Catalog, error) {
 	if err != nil {
 		return Catalog{}, err
 	}
+
+	// Pretty print the response
+	fmt.Println(string(resp.Body()))
 
 	if resp.StatusCode() != 200 {
 		return Catalog{}, fmt.Errorf(resp.Status())

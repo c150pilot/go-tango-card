@@ -15,11 +15,17 @@ func TestTangoClient_GetCatalogItems(t *testing.T) {
 	if err := godotenv.Load(".env"); err != nil {
 		t.Errorf("Expected nil, got %v", err)
 	}
-	// Setup Passing Test
-	token := os.Getenv("TANGO_TOKEN")
-	accountID := os.Getenv("TANGO_ACCOUNT_ID")
 
-	client, err := tango.New(token, accountID, true, os.Getenv("ENVIRONMENT"))
+	accountID := os.Getenv("TANGO_ACCOUNT_ID")
+	clientID := os.Getenv("TANGO_CLIENT_ID")
+	clientSecret := os.Getenv("TANGO_CLIENT_SECRET")
+
+	token, err := tango.GetToken(clientID, clientSecret, os.Getenv("ENVIRONMENT"))
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+
+	client, err := tango.New(token.AccessToken, accountID, true, os.Getenv("ENVIRONMENT"))
 	if err != nil {
 		t.Errorf("Expected nil, got %v", err)
 	}
