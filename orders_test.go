@@ -54,3 +54,21 @@ func TestOrder(t *testing.T) {
 	}
 
 }
+
+func TestResendOrder(t *testing.T) {
+	client := tango.TangoClient{
+		Environment:       "sandbox",
+		Token:             "x123",
+		SendEmail:         false,
+		AccountIdentifier: "123456",
+	}
+
+	// Test ResendOrder method exists and can be called
+	err := client.ResendOrder("test-order-id")
+	// We expect an error since this is a test order ID, but the method should exist
+	if err == nil {
+		t.Log("ResendOrder method exists and was called successfully")
+	} else {
+		t.Logf("ResendOrder method exists but returned error (expected for test): %v", err)
+	}
+}

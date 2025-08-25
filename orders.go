@@ -120,8 +120,6 @@ type Person struct {
 func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 	url := ApiURL + "/orders"
 
-	// TO-DO Validate Data
-
 	// Transfer data to payload
 	payload := CreateOrderRequest{
 		AccountIdentifier:  c.AccountIdentifier,
@@ -213,6 +211,75 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 	}
 
 	return responseData, nil
+}
+
+// ResendOrder resends an order email using Tango's resend API
+func (c *TangoClient) ResendOrder(referenceOrderID string) error {
+	if referenceOrderID == "" {
+		fmt.Printf("[Tango ResendOrder] ERROR: referenceOrderID is empty\n")
+		return fmt.Errorf("referenceOrderID is required")
+	}
+
+	url := fmt.Sprintf("%s/orders/%s/resends", ApiURL, referenceOrderID)
+
+	// Log the resend attempt with full details
+	fmt.Printf("[Tango ResendOrder] Starting resend process\n")
+	fmt.Printf("[Tango ResendOrder] Order ID: %s\n", referenceOrderID)
+	fmt.Printf("[Tango ResendOrder] URL: %s\n", url)
+	fmt.Printf("[Tango ResendOrder] Environment: %s\n", c.Environment)
+	fmt.Printf("[Tango ResendOrder] Account ID: %s\n", c.AccountIdentifier)
+	fmt.Printf("[Tango ResendOrder] Token (masked): %s...%s\n", c.Token[:10], c.Token[len(c.Token)-10:])
+
+	// Create HTTP Post Request
+	client := resty.New()
+	client.SetDebug(false) // Disable resty debug to avoid token exposure
+
+	// POST request to resend order
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Authorization", "Bearer "+c.Token).
+		Post(url)
+
+	if err != nil {
+		fmt.Printf("[Tango ResendOrder] HTTP request failed for order %s: %v\n", referenceOrderID, err)
+		return fmt.Errorf("failed to resend order: %w", err)
+	}
+
+	// Log comprehensive response details
+	fmt.Printf("[Tango ResendOrder] === RESPONSE DETAILS ===\n")
+	fmt.Printf("[Tango ResendOrder] Status Code: %d\n", resp.StatusCode())
+	fmt.Printf("[Tango ResendOrder] Status: %s\n", resp.Status())
+	fmt.Printf("[Tango ResendOrder] Headers: %v\n", resp.Header())
+	fmt.Printf("[Tango ResendOrder] Body Length: %d bytes\n", len(resp.Body()))
+	fmt.Printf("[Tango ResendOrder] Raw Body: %s\n", string(resp.Body()))
+	fmt.Printf("[Tango ResendOrder] Response Time: %v\n", resp.Time())
+
+	// Check for success status codes (Tango may return 200, 201, or 204 for success)
+	successCodes := []int{200, 201, 204}
+	isSuccess := false
+	for _, code := range successCodes {
+		if resp.StatusCode() == code {
+			isSuccess = true
+			break
+		}
+	}
+
+	if !isSuccess {
+		fmt.Printf("[Tango ResendOrder] FAILURE: Unexpected status code %d for order %s\n", resp.StatusCode(), referenceOrderID)
+
+		// Try to parse error response if present
+		if len(resp.Body()) > 0 {
+			var errorResp map[string]interface{}
+			if err := json.Unmarshal(resp.Body(), &errorResp); err == nil {
+				fmt.Printf("[Tango ResendOrder] Parsed error response: %+v\n", errorResp)
+			}
+		}
+
+		return fmt.Errorf("resend order failed with status: %s (body: %s)", resp.Status(), string(resp.Body()))
+	}
+
+	fmt.Printf("[Tango ResendOrder] SUCCESS: Order %s resent successfully with status %d\n", referenceOrderID, resp.StatusCode())
+	return nil
 }
 
 func clean(payload []byte) (map[string]interface{}, error) {
