@@ -18,6 +18,7 @@ type CreateOrderData struct {
 	Etid               string  `json:"etid"`
 	Campaign           string  `json:"campaign"`
 	Notes              string  `json:"notes"`
+	DeliveryMethod     string  `json:"deliveryMethod,omitempty"` // "NONE", "EMAIL", "PHONE", "ADDRESS", or "EMBEDDED" (uppercase)
 	Sender             Sender  `json:"sender"`
 	Recipient          Person
 }
@@ -30,7 +31,8 @@ type CreateOrderRequest struct {
 	Amount             float64 `json:"amount"`
 	EmailSubject       string  `json:"emailSubject"`
 	Message            string  `json:"message"`
-	SendEmail          bool    `json:"sendEmail"`
+	SendEmail          bool    `json:"sendEmail,omitempty"`      // Deprecated: use deliveryMethod instead
+	DeliveryMethod     string  `json:"deliveryMethod,omitempty"` // "NONE", "EMAIL", "PHONE", "ADDRESS", or "EMBEDDED" (uppercase)
 	Etid               string  `json:"etid"`
 	Campaign           string  `json:"campaign"`
 	Notes              string  `json:"notes"`
@@ -123,7 +125,6 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 	// Transfer data to payload
 	payload := CreateOrderRequest{
 		AccountIdentifier:  c.AccountIdentifier,
-		SendEmail:          c.SendEmail,
 		ExternalRefID:      data.ExternalRefID,
 		CustomerIdentifier: data.CustomerIdentifier,
 		Utid:               data.Utid,
@@ -135,6 +136,16 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 		Notes:              data.Notes,
 		Sender:             data.Sender,
 		Recipient:          data.Recipient,
+	}
+
+	// Use DeliveryMethod if provided, otherwise fall back to SendEmail for backward compatibility
+	// Note: When deliveryMethod is set, we should NOT include sendEmail as it's deprecated
+	if data.DeliveryMethod != "" {
+		payload.DeliveryMethod = data.DeliveryMethod
+		// Don't set SendEmail when using deliveryMethod
+	} else {
+		// Legacy behavior: use SendEmail from client config
+		payload.SendEmail = c.SendEmail
 	}
 
 	// Marshal payload to JSON
@@ -181,22 +192,35 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 		SetBody(payloadJSON).
 		Post(url)
 	if err != nil {
-		return CreateOrderResponse{}, err
+		return CreateOrderResponse{}, fmt.Errorf("HTTP request failed: %w", err)
 	}
 
 	// Check Status
-	fmt.Println(resp.Status())
+	fmt.Printf("[Tango Order] Status: %s\n", resp.Status())
+	fmt.Printf("[Tango Order] Request URL: %s\n", url)
+	fmt.Printf("[Tango Order] Request Body: %s\n", string(payloadJSON))
 
-	// Check JSON response for errors
-	var responseError CreateOrderResponseError
-	err = json.Unmarshal(resp.Body(), &responseError)
-	if err != nil {
-		return CreateOrderResponse{}, err
+	// If status is not 2xx, check for errors
+	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
+		bodyStr := string(resp.Body())
+		fmt.Printf("[Tango Order] Error Response Body: %s\n", bodyStr)
+
+		// Try to parse as error response
+		var responseError CreateOrderResponseError
+		err = json.Unmarshal(resp.Body(), &responseError)
+		if err == nil && len(responseError.Errors) > 0 {
+			return CreateOrderResponse{}, fmt.Errorf("Tango API error (status %d): %v", resp.StatusCode(), responseError.Errors)
+		}
+
+		// If not parseable as structured error, return raw body
+		return CreateOrderResponse{}, fmt.Errorf("Tango API error (status %d): %s", resp.StatusCode(), bodyStr)
 	}
 
-	// If there are errors, return them
-	if len(responseError.Errors) > 0 {
-		return CreateOrderResponse{}, fmt.Errorf("%v", responseError.Errors)
+	// Check JSON response for errors (even on 2xx status)
+	var responseError CreateOrderResponseError
+	err = json.Unmarshal(resp.Body(), &responseError)
+	if err == nil && len(responseError.Errors) > 0 {
+		return CreateOrderResponse{}, fmt.Errorf("Tango API error: %v", responseError.Errors)
 	}
 
 	if err != nil {
@@ -289,7 +313,12 @@ func clean(payload []byte) (map[string]interface{}, error) {
 	}
 
 	// Remove empty and nil values from nested maps
+	// But preserve deliveryMethod even if empty string (it's a valid value)
 	for k, v := range dataMap {
+		if k == "deliveryMethod" {
+			// Keep deliveryMethod field even if empty - it's a valid API field
+			continue
+		}
 		if v == nil || v == "" || v == 0 {
 			delete(dataMap, k)
 		}
