@@ -237,6 +237,55 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 	return responseData, nil
 }
 
+// GetOrder retrieves order details including credentials from Tango API
+// https://developers.tangocard.com/reference/get-details-for-a-specific-order
+func (c *TangoClient) GetOrder(referenceOrderID string) (CreateOrderResponse, error) {
+	if referenceOrderID == "" {
+		return CreateOrderResponse{}, fmt.Errorf("referenceOrderID is required")
+	}
+
+	url := fmt.Sprintf("%s/orders/%s", ApiURL, referenceOrderID)
+
+	client := resty.New()
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Authorization", "Bearer "+c.Token).
+		Get(url)
+
+	if err != nil {
+		return CreateOrderResponse{}, fmt.Errorf("HTTP request failed: %w", err)
+	}
+
+	// Check Status
+	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
+		bodyStr := string(resp.Body())
+		// Try to parse as error response
+		var responseError CreateOrderResponseError
+		err = json.Unmarshal(resp.Body(), &responseError)
+		if err == nil && len(responseError.Errors) > 0 {
+			return CreateOrderResponse{}, fmt.Errorf("Tango API error (status %d): %v", resp.StatusCode(), responseError.Errors)
+		}
+		return CreateOrderResponse{}, fmt.Errorf("Tango API error (status %d): %s", resp.StatusCode(), bodyStr)
+	}
+
+	// Check JSON response for errors (even on 2xx status)
+	var responseError CreateOrderResponseError
+	err = json.Unmarshal(resp.Body(), &responseError)
+	if err == nil && len(responseError.Errors) > 0 {
+		return CreateOrderResponse{}, fmt.Errorf("Tango API error: %v", responseError.Errors)
+	}
+
+	// Parse response
+	var responseData CreateOrderResponse
+	err = json.Unmarshal(resp.Body(), &responseData)
+	if err != nil {
+		return responseData, err
+	}
+
+	return responseData, nil
+}
+
 // ResendOrder resends an order email using Tango's resend API
 func (c *TangoClient) ResendOrder(referenceOrderID string) error {
 	if referenceOrderID == "" {
