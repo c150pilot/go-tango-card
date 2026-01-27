@@ -53,8 +53,8 @@ type ExchangeRatesResponse struct {
 }
 
 type ExchangeRates struct {
-	LastModifiedDate string `json:"lastModifiedDate"`
-	RewardCurrency   string `json:"rewardCurrency"`
-	BaseCurrency     string `json:"baseCurrency"`
-	BaseFx           int    `json:"baseFx"`
+	LastModifiedDate string  `json:"lastModifiedDate"`
+	RewardCurrency   string  `json:"rewardCurrency"`
+	BaseCurrency     string  `json:"baseCurrency"`
+	BaseFx           float64 `json:"baseFx"`
 }
