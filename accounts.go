@@ -35,6 +35,9 @@ func (c *TangoClient) GetAccountInfo(accountID string) (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+	if err := ensureSuccessStatus(resp, "get account info"); err != nil {
+		return Account{}, err
+	}
 
 	var responseData Account
 	err = json.Unmarshal(resp.Body(), &responseData)

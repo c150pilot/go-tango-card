@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package tango_test
 
 import (
@@ -6,46 +9,55 @@ import (
 	"testing"
 
 	tango "github.com/c150pilot/go-tango-card"
-
-	"github.com/joho/godotenv"
 )
 
-func TestTangoClient_GetCatalogItems(t *testing.T) {
-	// Initialize Environment Variables from .env using godotenv
-	if err := godotenv.Load(".env"); err != nil {
-		t.Errorf("Expected nil, got %v", err)
-	}
+func TestServiceAccount_GetCatalogItems(t *testing.T) {
+	loadTestEnv(t)
+	accountID := requireEnv(t, "TANGO_ACCOUNT_ID")
+	clientID := requireEnv(t, "TANGO_CLIENT_ID")
+	clientSecret := requireEnv(t, "TANGO_CLIENT_SECRET")
+	environment := requireEnv(t, "ENVIRONMENT")
 
-	accountID := os.Getenv("TANGO_ACCOUNT_ID")
-	clientID := os.Getenv("TANGO_CLIENT_ID")
-	clientSecret := os.Getenv("TANGO_CLIENT_SECRET")
+	serviceAccountUsername := os.Getenv("TANGO_SERVICE_ACCOUNT_USERNAME")
+	serviceAccountPassword := os.Getenv("TANGO_SERVICE_ACCOUNT_PASSWORD")
 
-	token, err := tango.GetToken(clientID, clientSecret, os.Getenv("ENVIRONMENT"))
+	token, authMode, err := tango.GetTokenWithServiceAccount(
+		clientID,
+		clientSecret,
+		serviceAccountUsername,
+		serviceAccountPassword,
+		environment,
+	)
 	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
+		t.Fatalf("Failed to get token: %v", err)
 	}
 
-	client, err := tango.New(token.AccessToken, accountID, true, os.Getenv("ENVIRONMENT"))
+	t.Logf("Auth Mode Used: %s", authMode)
+
+	client, err := tango.New(token.AccessToken, accountID, true, environment)
 	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
+		t.Fatalf("Failed to create Tango client: %v", err)
 	}
 
-	// Test that Should Pass
+	// Pull list of available gift cards (catalog items)
 	resp, err := client.GetCatalogItems()
 	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
+		t.Fatalf("Failed to get catalog items: %v", err)
 	}
 
-	for _, brand := range resp.Brands {
-		fmt.Println("Brand: ", brand.BrandName+" ("+brand.BrandKey+")")
-		for _, item := range brand.Items {
-			fmt.Println(" Item: ", item.RewardName+" ("+item.Utid+")")
-			fmt.Println(" Face Value: ", item.FaceValue)
-			if item.MinValue != 0 {
-				fmt.Println(" Min Value: ", item.MinValue)
-				fmt.Println(" Max Value: ", item.MaxValue)
-			}
-		}
-		fmt.Println("------------------------------------------------")
+	if len(resp.Brands) == 0 {
+		t.Fatalf("Expected at least one brand in catalog, got 0")
 	}
+
+	for i, brand := range resp.Brands {
+		// Just print the first 3 brands to avoid massive logs
+		if i >= 3 {
+			break
+		}
+		fmt.Printf("Brand: %s (%s)\n", brand.BrandName, brand.BrandKey)
+		for _, item := range brand.Items {
+			fmt.Printf("  Item: %s (%s) - Face Value: %f\n", item.RewardName, item.Utid, item.FaceValue)
+		}
+	}
+	fmt.Printf("... and %d more brands\n", len(resp.Brands)-3)
 }

@@ -115,6 +115,9 @@ func (c *TangoClient) GetLineItems() (LineItemsResponse, error) {
 	if err != nil {
 		return LineItemsResponse{}, err
 	}
+	if err := ensureSuccessStatus(resp, "get line items"); err != nil {
+		return LineItemsResponse{}, err
+	}
 
 	var responseData LineItemsResponse
 	err = json.Unmarshal(resp.Body(), &responseData)
@@ -142,6 +145,9 @@ func (c *TangoClient) GetLineItem(lineItemID string) (LineItem, error) {
 	if err != nil {
 		return LineItem{}, err
 	}
+	if err := ensureSuccessStatus(resp, "get line item"); err != nil {
+		return LineItem{}, err
+	}
 
 	var responseData LineItem
 	err = json.Unmarshal(resp.Body(), &responseData)
@@ -167,6 +173,9 @@ func (c *TangoClient) ResendLineItem(lineItemID string) (ResendResponse, error) 
 		Post(url)
 
 	if err != nil {
+		return ResendResponse{}, err
+	}
+	if err := ensureSuccessStatus(resp, "resend line item"); err != nil {
 		return ResendResponse{}, err
 	}
 
