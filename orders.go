@@ -196,16 +196,16 @@ func (c *TangoClient) Order(data CreateOrderData) (CreateOrderResponse, error) {
 	}
 
 	// If status is not 2xx, check for errors
-	if err := ensureSuccessStatus(resp, "create order"); err != nil {
+	if statusErr := ensureSuccessStatus(resp, "create order"); statusErr != nil {
 		// Try to parse as error response
 		var responseError CreateOrderResponseError
-		err = json.Unmarshal(resp.Body(), &responseError)
-		if err == nil && len(responseError.Errors) > 0 {
+		unmarshalErr := json.Unmarshal(resp.Body(), &responseError)
+		if unmarshalErr == nil && len(responseError.Errors) > 0 {
 			return CreateOrderResponse{}, fmt.Errorf("Tango API error (status %d): %v", resp.StatusCode(), responseError.Errors)
 		}
 
 		// If not parseable as structured error, return raw body
-		return CreateOrderResponse{}, fmt.Errorf("%w", err)
+		return CreateOrderResponse{}, statusErr
 	}
 
 	// Check JSON response for errors (even on 2xx status)
@@ -249,14 +249,14 @@ func (c *TangoClient) GetOrder(referenceOrderID string) (CreateOrderResponse, er
 		return CreateOrderResponse{}, fmt.Errorf("HTTP request failed: %w", err)
 	}
 
-	if err := ensureSuccessStatus(resp, "get order"); err != nil {
+	if statusErr := ensureSuccessStatus(resp, "get order"); statusErr != nil {
 		// Try to parse as error response
 		var responseError CreateOrderResponseError
-		err = json.Unmarshal(resp.Body(), &responseError)
-		if err == nil && len(responseError.Errors) > 0 {
+		unmarshalErr := json.Unmarshal(resp.Body(), &responseError)
+		if unmarshalErr == nil && len(responseError.Errors) > 0 {
 			return CreateOrderResponse{}, fmt.Errorf("Tango API error (status %d): %v", resp.StatusCode(), responseError.Errors)
 		}
-		return CreateOrderResponse{}, fmt.Errorf("%w", err)
+		return CreateOrderResponse{}, statusErr
 	}
 
 	// Check JSON response for errors (even on 2xx status)
