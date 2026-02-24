@@ -31,6 +31,9 @@ func (c *TangoClient) GetExchangeRates(baseCurrency, rewardCurrency string) (Exc
 	if err != nil {
 		return ExchangeRatesResponse{}, err
 	}
+	if err := ensureSuccessStatus(resp, "get exchange rates"); err != nil {
+		return ExchangeRatesResponse{}, err
+	}
 
 	var responseData ExchangeRatesResponse
 	err = json.Unmarshal(resp.Body(), &responseData)

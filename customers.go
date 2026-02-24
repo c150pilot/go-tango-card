@@ -48,6 +48,9 @@ func (c *TangoClient) GetCustomers() ([]Customer, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := ensureSuccessStatus(resp, "get customers"); err != nil {
+		return nil, err
+	}
 
 	var responseData []Customer
 	err = json.Unmarshal(resp.Body(), &responseData)
@@ -72,6 +75,9 @@ func (c *TangoClient) GetCustomer(customerIdentifier string) (Customer, error) {
 		SetHeader("Authorization", "Bearer "+c.Token).
 		Get(url)
 	if err != nil {
+		return Customer{}, err
+	}
+	if err := ensureSuccessStatus(resp, "get customer"); err != nil {
 		return Customer{}, err
 	}
 
@@ -99,6 +105,9 @@ func (c *TangoClient) GetCustomerAccounts(customerIdentifier string) ([]UserAcco
 		Get(url)
 
 	if err != nil {
+		return nil, err
+	}
+	if err := ensureSuccessStatus(resp, "get customer accounts"); err != nil {
 		return nil, err
 	}
 
@@ -134,6 +143,9 @@ func (c *TangoClient) CreateCustomer(customerIdentifier string, displayName stri
 	if err != nil {
 		return CreateCustomerRequest{}, err
 	}
+	if err := ensureSuccessStatus(resp, "create customer"); err != nil {
+		return CreateCustomerRequest{}, err
+	}
 
 	var responseData CreateCustomerRequest
 	err = json.Unmarshal(resp.Body(), &responseData)
@@ -166,6 +178,9 @@ func (c *TangoClient) CreateCustomerAccount(customerIdentifier string, accountId
 		Post(url)
 
 	if err != nil {
+		return CreateCustomerAccountRequest{}, err
+	}
+	if err := ensureSuccessStatus(resp, "create customer account"); err != nil {
 		return CreateCustomerAccountRequest{}, err
 	}
 
